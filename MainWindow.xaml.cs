@@ -1,15 +1,11 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Automation;
-using System.Windows.Automation.Text;
-using System.Windows.Forms;
 
 namespace BetterCharMap;
 
@@ -24,15 +20,13 @@ public partial class MainWindow : Window
 	private UniformGrid grid;
 
 	private string filter = "";
-	private int selectedIndex;
-	private Color highlightColor = Color.FromRgb(100, 100, 100);
+	private Color highlightColor = Color.FromRgb(150, 150, 150);
 
 	public MainWindow()
 	{
 		InitializeComponent();
 		Loaded += OnLoaded;
 		IsVisibleChanged += OnIsVisibleChanged;
-		CharGridControl.ItemContainerGenerator.StatusChanged += ResetHighlightToFirst;
 		CharGridControl.Loaded += OnCharGridLoaded;
 	}
 
@@ -55,6 +49,7 @@ public partial class MainWindow : Window
 	private void OnCharGridLoaded(object sender, EventArgs eventArgs)
 	{
 		grid = FindUniformGrid(CharGridControl);
+		CharGridControl.ItemContainerGenerator.StatusChanged += ResetHighlightToFirst;
 	}
 
 	private UniformGrid FindUniformGrid(DependencyObject parent)
@@ -106,7 +101,7 @@ public partial class MainWindow : Window
 
 	private void ResetHighlightToFirst(object sender, EventArgs eventArgs)
 	{
-		selectedIndex = 0;
+		filterableUnicodeChars.selectedIndex = 0;
 
 		var contentPresenter = GetContentPresenterInItemsControl(CharGridControl, 0);
 		if (contentPresenter == null) return;
@@ -130,7 +125,7 @@ public partial class MainWindow : Window
 
 	private void HighlightSelectedIndex()
 	{
-		var contentPresenter = GetContentPresenterInItemsControl(CharGridControl, selectedIndex);
+		var contentPresenter = GetContentPresenterInItemsControl(CharGridControl, filterableUnicodeChars.selectedIndex);
 		if (contentPresenter == null) return;
 
 		if (VisualTreeHelper.GetChildrenCount(contentPresenter) <= 0) return;
@@ -141,7 +136,7 @@ public partial class MainWindow : Window
 
 	private void UnHighlightSelectedIndex()
 	{
-		var contentPresenter = GetContentPresenterInItemsControl(CharGridControl, selectedIndex);
+		var contentPresenter = GetContentPresenterInItemsControl(CharGridControl, filterableUnicodeChars.selectedIndex);
 		if (contentPresenter == null) return;
 
 		if (VisualTreeHelper.GetChildrenCount(contentPresenter) <= 0) return;
@@ -173,24 +168,24 @@ public partial class MainWindow : Window
 		switch (e.Key)
 		{
 			case Key.Left:
-				selectedIndex = Math.Max(selectedIndex - 1, 0);
+				filterableUnicodeChars.selectedIndex = Math.Max(filterableUnicodeChars.selectedIndex - 1, 0);
 				HighlightSelectedIndex();
 				break;
 			case Key.Right:
-				selectedIndex = Math.Min(selectedIndex + 1, grid.Children.Count - 1);
+				filterableUnicodeChars.selectedIndex = Math.Min(filterableUnicodeChars.selectedIndex + 1, grid.Children.Count - 1);
 				HighlightSelectedIndex();
 				break;
 			case Key.Up:
-				selectedIndex = Math.Max(selectedIndex - grid.Columns, 0);
+				filterableUnicodeChars.selectedIndex = Math.Max(filterableUnicodeChars.selectedIndex - grid.Columns, 0);
 				HighlightSelectedIndex();
 				break;
 			case Key.Down:
-				selectedIndex = Math.Min(selectedIndex + grid.Columns, grid.Children.Count - 1);
+				filterableUnicodeChars.selectedIndex = Math.Min(filterableUnicodeChars.selectedIndex + grid.Columns, grid.Children.Count - 1);
 				HighlightSelectedIndex();
 				break;
 			case Key.Enter:
 				//SendBackSpaces(filter.Length);
-				SendUnicodeCharacter(filterableUnicodeChars.displayList[selectedIndex].codepoint);
+				SendUnicodeCharacter(filterableUnicodeChars.selectedCharacter.codepoint);
 				HighlightSelectedIndex();
 				break;
 			case Key.Escape:
@@ -295,7 +290,7 @@ public partial class MainWindow : Window
 
 
 	[DllImport("user32.dll", SetLastError = true)]
-	static extern int SendMessage(IntPtr hWnd, UInt32 Msg, UIntPtr wParam, IntPtr lParam);
+	static extern int SendMessage(IntPtr hWnd, UInt32 Msg, UIntPtr wParam, ref Win32.ImeCharPosition imeCharPosition);
 
 	public const int WM_IME_REQUEST = 0x0288;
 	public int IMR_QUERYCHARPOSITION = 0x0006;
@@ -306,26 +301,33 @@ public partial class MainWindow : Window
 
 		//NOTE(Simon): Although the code below seems correct to me, it doesn't work.
 
-		var hwnd = Win32.GetForegroundWindow();
+		var foregroundHwnd = Win32.GetForegroundWindow();
+		uint pid = Win32.GetWindowThreadProcessId(foregroundHwnd, out _);
+		var threadInfo = new Win32.GUITHREADINFO();
+		threadInfo.cbSize = (uint)Marshal.SizeOf(threadInfo);
+		Win32.GetGUIThreadInfo(pid, ref threadInfo);
+		var hwnd = threadInfo.hwndFocus;
+
 		var charPos = new Win32.ImeCharPosition();
-		charPos.size = Marshal.SizeOf(charPos);
-		var charPosPtr = Marshal.AllocHGlobal(Marshal.SizeOf(charPos));
+		charPos.size = (uint)Marshal.SizeOf(charPos);
+		//var charPosPtr = Marshal.AllocHGlobal(Marshal.SizeOf(charPos));
 
 		try
 		{
-			Marshal.StructureToPtr(charPos, charPosPtr, false);
+			//Marshal.StructureToPtr(charPos, charPosPtr, false);
 
-			var success = SendMessage(hwnd, WM_IME_REQUEST, (UIntPtr)IMR_QUERYCHARPOSITION, charPosPtr);
+			var success = SendMessage(hwnd, WM_IME_REQUEST, (UIntPtr)IMR_QUERYCHARPOSITION, ref charPos);
 
 			Console.WriteLine(Marshal.GetLastWin32Error());
 
 			if (success == 0) return;
+			Console.WriteLine("Success!");
 
-			var charPosition = Marshal.PtrToStructure<Win32.ImeCharPosition>(charPosPtr);
+			//var charPosition = Marshal.PtrToStructure<Win32.ImeCharPosition>(charPosPtr);
 		}
 		finally
 		{
-			Marshal.FreeHGlobal(charPosPtr);
+			//Marshal.FreeHGlobal(charPosPtr);
 		}
 	}
 }

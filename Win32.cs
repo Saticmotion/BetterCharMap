@@ -15,16 +15,7 @@ public class Win32
 	public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
 	[DllImport("user32.dll")]
-	public static extern IntPtr GetActiveWindow();
-
-	[DllImport("user32.dll")]
 	public static extern IntPtr GetForegroundWindow();
-
-	[DllImport("user32.dll")]
-	public static extern IntPtr GetFocus();
-
-	[DllImport("user32.dll")]
-	public static extern bool AttachThreadInput(int idAttach, int idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
 
 	[DllImport("user32.dll", SetLastError = true)]
 	public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
@@ -32,7 +23,7 @@ public class Win32
 	[StructLayout(LayoutKind.Sequential)]
 	public struct GUITHREADINFO
 	{
-		public int cbSize;
+		public uint cbSize;
 		public uint flags;
 		public IntPtr hwndActive;
 		public IntPtr hwndFocus;
@@ -54,7 +45,7 @@ public class Win32
 
 	[DllImport("user32.dll")]
 	[return: MarshalAs(UnmanagedType.Bool)]
-	public static extern bool GetGUIThreadInfo(int idThread, ref GUITHREADINFO lpgui);
+	public static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
 
 
 	[StructLayout(LayoutKind.Sequential)]
@@ -77,18 +68,12 @@ public class Win32
 	[StructLayout(LayoutKind.Sequential)]
 	public struct ImeCharPosition
 	{
-		public int size;
-		public int charPos;
-		public Win32.POINT point;
+		public uint size;
+		public uint charPos;
+		public POINT point;
 		public uint lineHeight;
-		public Win32.RECT rectDocument;
+		public RECT rectDocument;
 	}
-
-	[DllImport("user32.dll", SetLastError = true)]
-	public static extern bool GetCaretPos(out POINT point);
-
-	[DllImport("user32.dll")]
-	public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
 
 	[DllImport("user32.dll", SetLastError = true)]
 	public static extern uint SendInput(uint nInputs, Input[] pInputs, int cbSize);
@@ -146,20 +131,6 @@ public class Win32
 		public KeyEventF Flags;
 		public uint Time;
 		public IntPtr DwExtraInfo;
-	}
-
-	public static void ShowWindowNoActive(Window window)
-	{
-		var hwnd = (HwndSource.FromVisual(window) as HwndSource).Handle;
-		ShowWindow(hwnd, ShowWindowCommands.SW_SHOWNOACTIVATE);
-	}
-
-	[DllImport("user32.dll")]
-	private static extern bool ShowWindow(IntPtr hWnd, ShowWindowCommands nCmdShow);
-
-	private enum ShowWindowCommands : int
-	{
-		SW_SHOWNOACTIVATE = 4
 	}
 
 	public enum VK : byte

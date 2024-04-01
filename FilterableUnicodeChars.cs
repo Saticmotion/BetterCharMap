@@ -8,13 +8,12 @@ using System.Windows;
 
 namespace BetterCharMap;
 
-//TODO(Simon): Can this be struct? Or something even smarter, to make filtering faster.
 public class UnicodeChar
 {
 	public string character { get; set; }
 	public int codepoint;
 	public string codepointString;
-	public string description;
+	public string description { get; set; }
 	public string alternativeDescription;
 }
 
@@ -40,7 +39,19 @@ public class FilterableUnicodeChars : INotifyPropertyChanged
 	// ReSharper disable once UnusedMember.Global Used by XAML
 	public List<UnicodeChar> displayList => chars.Take(250).ToList();
 	public List<UnicodeChar> chars { get; private set; }
+	public UnicodeChar selectedCharacter => displayList[selectedIndex];
 
+	public int selectedIndex
+	{
+		get => _selectedIndex;
+		set
+		{
+			_selectedIndex = value;
+			OnPropertyChanged("selectedCharacter");
+		}
+	}
+
+	private int _selectedIndex;
 	private string _filter;
 	private readonly List<UnicodeChar> allchars;
 
